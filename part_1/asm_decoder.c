@@ -3,7 +3,7 @@
 
 typedef unsigned char u8;
 
-char *registers[] = {
+char registers[][3] = {
     // Byte registers
     "al",
     "cl",
@@ -72,12 +72,12 @@ void decode_asm(FILE *input, FILE *output)
             }
             else
             {
-                fprintf(output, "; unsupported mov (only mod 11 is supported)\n");
+                fprintf(output, "; unsupported mov op (mod other than 11)\n");
             }
         }
         else
         {
-            fprintf(output, "; unknown op\n");
+            fprintf(output, "; unknown op code\n");
         }
     }
 }
