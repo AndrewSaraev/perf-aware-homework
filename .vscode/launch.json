@@ -6,7 +6,7 @@
             "request": "launch",
             "program": "${fileDirname}\\${fileBasenameNoExtension}.exe",
             "args": [
-                "listing_0037_single_register_mov"
+                "listing_0038_many_register_mov"
             ],
             "stopAtEntry": false,
             "cwd": "${fileDirname}",

@@ -1,9 +1,10 @@
+#include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
-typedef unsigned char u8;
-
-char registers[][3] = {
+const char registers[][3] = {
     // Byte registers
     "al",
     "cl",
@@ -24,49 +25,36 @@ char registers[][3] = {
     "di",
 };
 
-size_t read_byte(u8 *buffer, FILE *input)
+size_t read_byte(uint8_t *buffer, FILE *input)
 {
-    return fread(buffer, sizeof(u8), 1, input);
+    return fread(buffer, sizeof(uint8_t), 1, input);
 }
 
 void decode_asm(FILE *input, FILE *output)
 {
     fprintf(output, "bits 16\n\n");
 
-    u8 read;
+    uint8_t read;
     while (read_byte(&read, input))
     {
-        u8 op_code = read >> 2;
-        u8 d = read >> 1 & 1;
-        u8 w = read & 1;
+        uint8_t op_code = read >> 2;
+        bool d = read >> 1 & 1;
+        bool w = read & 1;
 
         if (op_code == 0b100010)
         {
             read_byte(&read, input);
-            u8 mod = read >> 6;
-            u8 reg = read >> 3 & 0b111;
-            u8 rm = read & 0b111;
+            uint8_t mod = read >> 6;
+            uint8_t reg = read >> 3 & 0b111;
+            uint8_t rm = read & 0b111;
 
             if (mod == 0b11)
             {
-                u8 dest;
-                u8 src;
-                if (d)
-                {
-                    dest = reg;
-                    src = rm;
-                }
-                else
-                {
-                    dest = rm;
-                    src = reg;
-                }
+                uint8_t reg_start = w << 3;
+                bool not_d = !d;
 
-                if (w)
-                {
-                    dest += 8;
-                    src += 8;
-                }
+                uint8_t dest = reg_start + reg * d + rm * not_d;
+                uint8_t src = reg_start + reg * not_d + rm * d;
 
                 fprintf(output, "mov %s, %s\n", registers[dest], registers[src]);
             }
@@ -82,12 +70,12 @@ void decode_asm(FILE *input, FILE *output)
     }
 }
 
-int main(int argc, char **argv)
+void main(int argc, char **argv)
 {
     if (argc < 2)
     {
         printf("Please provide a file name.");
-        return 0;
+        return;
     }
 
     char *input_file_name = argv[1];
@@ -95,11 +83,11 @@ int main(int argc, char **argv)
 
     if (!input_file)
     {
-        printf("File \"%s\" not found.", input_file_name);
-        return 0;
+        printf("File %s not found.", input_file_name);
+        return;
     }
 
-    char output_file_name[64];
+    char *output_file_name = malloc(strlen(input_file_name + 9)); // Never freed
     strcpy(output_file_name, input_file_name);
     strcat(output_file_name, "_dec.asm");
 
@@ -109,6 +97,4 @@ int main(int argc, char **argv)
 
     fclose(input_file);
     fclose(output_file);
-
-    return 0;
 }
