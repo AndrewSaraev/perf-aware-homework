@@ -1,7 +1,7 @@
+#include "allocator.c"
+
 #include <stdbool.h>
-#include <stdint.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 
 const char registers[][3] = {
@@ -87,11 +87,15 @@ void main(int argc, char **argv)
         return;
     }
 
-    char *output_file_name = malloc(strlen(input_file_name + 9)); // Never freed
+    bump_allocator allocator = allocate_bump_allocator(1024);
+
+    size_t output_file_name_length = strlen(input_file_name) + 9;
+    BUMP_ALLOCATE(char, output_file_name, output_file_name_length, &allocator);
     strcpy(output_file_name, input_file_name);
     strcat(output_file_name, "_dec.asm");
 
     FILE *output_file = fopen(output_file_name, "w");
+    clear_bump_allocator(&allocator);
 
     decode_asm(input_file, output_file);
 
