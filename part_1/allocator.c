@@ -2,38 +2,38 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+#define ALLOC_BUMP(name, count, allocator) name = alloc_bump((allocator), (count) * sizeof(*name), _Alignof(*name));
+
 typedef struct bump_allocator
 {
-    void *start;
-    intptr_t end;
-    intptr_t free;
+    char *start;
+    char *free;
+    char *end;
 } bump_allocator;
 
-bump_allocator allocate_bump_allocator(size_t size)
+bump_allocator create_bump_allocator(size_t size)
 {
     bump_allocator output;
     output.start = malloc(size);
-    output.end = (intptr_t)output.start + size;
-    output.free = (intptr_t)output.start;
+    output.free = output.start;
+    output.end = output.start + size;
     return output;
 }
 
-void* bump_allocate(bump_allocator *allocator, size_t size, size_t alignment) 
+void* alloc_bump(bump_allocator *allocator, size_t size, size_t alignment) 
 {
-    intptr_t aligned_free = (allocator->free + (alignment - 1)) / alignment * alignment;
-    intptr_t next_free = aligned_free + size;
+    char *aligned_free = (char*)(((intptr_t)allocator->free + (alignment - 1)) / alignment * alignment);
+    char *next_free = aligned_free + size;
     if (next_free > allocator->end)
         return NULL;
 
     allocator->free = next_free;
-    return (void*)aligned_free;
+    return aligned_free;
 }
-
-#define BUMP_ALLOCATE(type, name, size, allocator) type *name = bump_allocate(allocator, size, alignof(type));
 
 void clear_bump_allocator(bump_allocator *allocator)
 {
-    allocator->free = (intptr_t)allocator->start;
+    allocator->free = allocator->start;
 }
 
 void free_bump_allocator(bump_allocator *allocator)

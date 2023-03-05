@@ -87,10 +87,11 @@ void main(int argc, char **argv)
         return;
     }
 
-    bump_allocator allocator = allocate_bump_allocator(1024);
+    bump_allocator allocator = create_bump_allocator(1024);
 
     size_t output_file_name_length = strlen(input_file_name) + 9;
-    BUMP_ALLOCATE(char, output_file_name, output_file_name_length, &allocator);
+    char *output_file_name;
+    ALLOC_BUMP(output_file_name, output_file_name_length, &allocator);
     strcpy(output_file_name, input_file_name);
     strcat(output_file_name, "_dec.asm");
 
