@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 
 const char registers[][3] = {
     // Byte registers
@@ -72,9 +73,11 @@ void decode_asm(FILE *input, FILE *output)
 
 void main(int argc, char **argv)
 {
+    clock_t timer_start = clock();
+
     if (argc < 2)
     {
-        printf("Please provide a file name.");
+        printf("A file name is expected as an argument.");
         return;
     }
 
@@ -102,4 +105,8 @@ void main(int argc, char **argv)
 
     fclose(input_file);
     fclose(output_file);
+
+    clock_t timer_end = clock();
+    double timer_duration = (double)(timer_end - timer_start) / CLOCKS_PER_SEC;
+    printf("Decoded instructions from %s in %d seconds.", input_file_name, timer_duration);
 }
