@@ -5,7 +5,8 @@
 #include <string.h>
 #include <time.h>
 
-char *registers[] = {
+char *registers[] =
+{
     // Byte registers
     "al",
     "cl",
@@ -24,7 +25,10 @@ char *registers[] = {
     "bp",
     "si",
     "di",
-    // Effective address registers
+};
+
+char *address_calculations[] =
+{
     "bx + si",
     "bx + di",
     "bp + si",
@@ -78,7 +82,7 @@ void output_effective_address(FILE *input, FILE *output, uint8_t mod, uint8_t r_
     }
     else
     {
-        char *reg = registers[16 + r_m];
+        char *reg = address_calculations[r_m];
         int16_t disp = read_disp(input, mod);
         if (disp)
         {
@@ -146,14 +150,37 @@ void decode_asm(FILE *input, FILE *output)
                 }
             }
         }
-        /* else if (read >> 1 == 0b1100011)
+        else if (read >> 1 == 0b1100011)
         {
             bool w = read & 1;
 
             read_byte(&read, input);
             uint8_t mod = read >> 6;
             uint8_t r_m = read & 0b111;
-        } */
+
+            uint8_t reg_mask = w << 3;
+            char *r_m_name = registers[reg_mask | r_m];
+
+            if (mod == 0b11) // Register mode
+            {
+                int16_t data = read_sign_extended(input, w);
+                fprintf(output, "mov %s, %s\n", r_m_name, data);
+            }
+            else // Memory mode
+            {
+                fprintf(output, "mov ");
+                output_effective_address(input, output, mod, r_m);
+                int16_t data = read_sign_extended(input, w);
+                if (w)
+                {
+                    fprintf(output, ", word %d\n", data);
+                }
+                else
+                {
+                    fprintf(output, ", byte %d\n", data);
+                }
+            }
+        }
         else if (read >> 4 == 0b1011)
         {
             bool w = read >> 3 & 1;
@@ -165,7 +192,7 @@ void decode_asm(FILE *input, FILE *output)
         }
         else
         {
-            fprintf(output, "; unknown op code\n");
+            fprintf(output, "; unrecognized byte\n");
         }
     }
 }
