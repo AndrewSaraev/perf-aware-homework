@@ -190,6 +190,23 @@ void decode_asm(FILE *input, FILE *output)
             int16_t data = read_sign_extended(input, w);
             fprintf(output, "mov %s, %d\n", reg_name, data);
         }
+        else if (read >> 2 == 0b101000)
+        {
+            bool d = read >> 1 & 1;
+            bool w = read & 1;
+
+            char *reg_name = registers[w << 3];
+            uint16_t addr;
+            fread(&addr, sizeof(uint16_t), 1, input);
+            if (d)
+            {
+                fprintf(output, "mov [%d], %s\n", addr, reg_name);
+            }
+            else
+            {
+                fprintf(output, "mov %s, [%d]\n", reg_name, addr);
+            }
+        }
         else
         {
             fprintf(output, "; unrecognized byte\n");
