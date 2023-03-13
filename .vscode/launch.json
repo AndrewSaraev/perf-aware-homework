@@ -6,7 +6,7 @@
             "request": "launch",
             "program": "${fileDirname}\\${fileBasenameNoExtension}.exe",
             "args": [
-                "listing_0040_challenge_movs"
+                "data\\listing_0040_challenge_movs"
             ],
             "stopAtEntry": false,
             "cwd": "${fileDirname}",
