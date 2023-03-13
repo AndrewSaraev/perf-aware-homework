@@ -6,7 +6,7 @@
             "request": "launch",
             "program": "${fileDirname}\\${fileBasenameNoExtension}.exe",
             "args": [
-                "data\\listing_0040_challenge_movs"
+                "data\\listing_0041_add_sub_cmp_jnz"
             ],
             "stopAtEntry": false,
             "cwd": "${fileDirname}",

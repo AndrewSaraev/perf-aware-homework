@@ -102,6 +102,47 @@ void output_effective_address(FILE *input, FILE *output, uint8_t mod, uint8_t r_
     }
 }
 
+void decode_mod_reg_r_m_disp(FILE *input, FILE *output, uint8_t byte0)
+{
+    bool d = byte0 >> 1 & 1;
+    bool w = byte0 & 1;
+
+    uint8_t byte1;
+    read_byte(&byte1, input);
+    uint8_t mod = byte1 >> 6;
+    uint8_t reg = byte1 >> 3 & 0b111;
+    uint8_t r_m = byte1 & 0b111;
+
+    uint8_t reg_mask = w << 3;
+    char *reg_name = registers[reg_mask | reg];
+    if (mod == 0b11) // Register mode
+    {
+        char *r_m_name = registers[reg_mask | r_m];
+        if (d)
+        {
+            fprintf(output, "%s, %s\n", reg_name, r_m_name);
+        }
+        else
+        {
+            fprintf(output, "%s, %s\n", r_m_name, reg_name);
+        }
+    }
+    else // Memory mode
+    {
+        if (d)
+        {
+            fprintf(output, "%s, ", reg_name);
+            output_effective_address(input, output, mod, r_m);
+            fprintf(output, "\n");
+        }
+        else
+        {
+            output_effective_address(input, output, mod, r_m);
+            fprintf(output, ", %s\n", reg_name);
+        }
+    }
+}
+
 void decode_asm(FILE *input, FILE *output)
 {
     fprintf(output, "bits 16\n\n");
@@ -109,47 +150,29 @@ void decode_asm(FILE *input, FILE *output)
     uint8_t read;
     while (read_byte(&read, input))
     {
+        // Reg/memory and register to either
         if (read >> 2 == 0b100010)
         {
-            bool d = read >> 1 & 1;
-            bool w = read & 1;
-
-            read_byte(&read, input);
-            uint8_t mod = read >> 6;
-            uint8_t reg = read >> 3 & 0b111;
-            uint8_t r_m = read & 0b111;
-
-            uint8_t reg_mask = w << 3;
-            char *reg_name = registers[reg_mask | reg];
-
-            if (mod == 0b11) // Register mode
-            {
-                char *r_m_name = registers[reg_mask | r_m];
-                if (d)
-                {
-                    fprintf(output, "mov %s, %s\n", reg_name, r_m_name);
-                }
-                else
-                {
-                    fprintf(output, "mov %s, %s\n", r_m_name, reg_name);
-                }
-            }
-            else // Memory mode
-            {
-                if (d)
-                {
-                    fprintf(output, "mov %s, ", reg_name);
-                    output_effective_address(input, output, mod, r_m);
-                    fprintf(output, "\n");
-                }
-                else
-                {
-                    fprintf(output, "mov ");
-                    output_effective_address(input, output, mod, r_m);
-                    fprintf(output, ", %s\n", reg_name);
-                }
-            }
+            fprintf(output, "mov ");
+            decode_mod_reg_r_m_disp(input, output, read);
         }
+        else if (read >> 2 == 0b000000)
+        {
+            fprintf(output, "add ");
+            decode_mod_reg_r_m_disp(input, output, read);
+        }
+        else if (read >> 2 == 0b001010)
+        {
+            fprintf(output, "sub ");
+            decode_mod_reg_r_m_disp(input, output, read);
+        }
+        else if (read >> 2 == 0b001110)
+        {
+            fprintf(output, "cmp ");
+            decode_mod_reg_r_m_disp(input, output, read);
+        }
+
+        // Immediate from register/memory
         else if (read >> 1 == 0b1100011)
         {
             bool w = read & 1;
