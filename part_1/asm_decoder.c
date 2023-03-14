@@ -15,7 +15,7 @@ char *registers[] =
     "ah",
     "ch",
     "dh",
-    "bl",
+    "bh",
     // Word registers
     "ax",
     "cx",
@@ -143,80 +143,133 @@ void decode_mod_reg_r_m_disp(FILE *input, FILE *output, uint8_t byte0)
     }
 }
 
+void decode_immediate(FILE *input, FILE *output, bool word_reg, bool word_data, uint8_t byte1)
+{
+    uint8_t mod = byte1 >> 6;
+    uint8_t r_m = byte1 & 0b111;
+
+    uint8_t reg_mask = word_reg << 3;
+    char *r_m_name = registers[reg_mask | r_m];
+
+    if (mod == 0b11) // Register mode
+    {
+        int16_t data = read_sign_extended(input, word_data);
+        fprintf(output, "%s, %d\n", r_m_name, data);
+    }
+    else // Memory mode
+    {
+        if (word_reg)
+        {
+            fprintf(output, "word ");
+        }
+        else
+        {
+            fprintf(output, "byte ");
+        }
+        output_effective_address(input, output, mod, r_m);
+        int16_t data = read_sign_extended(input, word_data);
+        fprintf(output, ", %d\n", data);
+    }
+}
+
+void write_unrecognized_byte(FILE *output, uint8_t byte)
+{
+    fprintf(output, "; %02x\n", byte);
+}
+
 void decode_asm(FILE *input, FILE *output)
 {
     fprintf(output, "bits 16\n\n");
 
-    uint8_t read;
-    while (read_byte(&read, input))
+    uint8_t byte0;
+    while (read_byte(&byte0, input))
     {
         // Reg/memory and register to either
-        if (read >> 2 == 0b100010)
+        if (byte0 >> 2 == 0b100010)
         {
             fprintf(output, "mov ");
-            decode_mod_reg_r_m_disp(input, output, read);
+            decode_mod_reg_r_m_disp(input, output, byte0);
         }
-        else if (read >> 2 == 0b000000)
+        else if (byte0 >> 2 == 0b000000)
         {
             fprintf(output, "add ");
-            decode_mod_reg_r_m_disp(input, output, read);
+            decode_mod_reg_r_m_disp(input, output, byte0);
         }
-        else if (read >> 2 == 0b001010)
+        else if (byte0 >> 2 == 0b001010)
         {
             fprintf(output, "sub ");
-            decode_mod_reg_r_m_disp(input, output, read);
+            decode_mod_reg_r_m_disp(input, output, byte0);
         }
-        else if (read >> 2 == 0b001110)
+        else if (byte0 >> 2 == 0b001110)
         {
             fprintf(output, "cmp ");
-            decode_mod_reg_r_m_disp(input, output, read);
+            decode_mod_reg_r_m_disp(input, output, byte0);
         }
 
         // Immediate from register/memory
-        else if (read >> 1 == 0b1100011)
+        else if (byte0 >> 1 == 0b1100011)
         {
-            bool w = read & 1;
+            bool word = byte0 & 1;
 
-            read_byte(&read, input);
-            uint8_t mod = read >> 6;
-            uint8_t r_m = read & 0b111;
+            uint8_t byte1;
+            read_byte(&byte1, input);
+            uint8_t reg = byte1 >> 3 & 0b111;
 
-            uint8_t reg_mask = w << 3;
-            char *r_m_name = registers[reg_mask | r_m];
-
-            if (mod == 0b11) // Register mode
-            {
-                int16_t data = read_sign_extended(input, w);
-                fprintf(output, "mov %s, %s\n", r_m_name, data);
-            }
-            else // Memory mode
+            if (reg == 0b000)
             {
                 fprintf(output, "mov ");
-                output_effective_address(input, output, mod, r_m);
-                int16_t data = read_sign_extended(input, w);
-                if (w)
-                {
-                    fprintf(output, ", word %d\n", data);
-                }
-                else
-                {
-                    fprintf(output, ", byte %d\n", data);
-                }
+                decode_immediate(input, output, word, word, byte1);
+            }
+            else
+            {
+                write_unrecognized_byte(output, byte0);
+                write_unrecognized_byte(output, byte1);
             }
         }
-        else if (read >> 4 == 0b1011)
+        else if (byte0 >> 2 == 0b100000)
         {
-            bool w = read >> 3 & 1;
-            uint8_t reg = read & 0b111;
+            bool word_reg = byte0 & 1;
+            bool word_data = byte0 & 0b11 == 0b01;
+
+            uint8_t byte1;
+
+            read_byte(&byte1, input);
+            uint8_t reg = byte1 >> 3 & 0b111;
+
+            if (reg == 0b000)
+            {
+                fprintf(output, "add ");
+                decode_immediate(input, output, word_reg, word_data, byte1);
+            }
+            else if (reg == 0b101)
+            {
+                fprintf(output, "sub ");
+                decode_immediate(input, output, word_reg, word_data, byte1);
+            }
+            else if (reg == 0b111)
+            {
+                fprintf(output, "cmp ");
+                decode_immediate(input, output, word_reg, word_data, byte1);
+            }
+            else
+            {
+                write_unrecognized_byte(output, byte0);
+                write_unrecognized_byte(output, byte1);
+            }
+        }
+        else if (byte0 >> 4 == 0b1011)
+        {
+            bool w = byte0 >> 3 & 1;
+            uint8_t reg = byte0 & 0b111;
 
             char *reg_name = registers[w << 3 | reg];
             int16_t data = read_sign_extended(input, w);
             fprintf(output, "mov %s, %d\n", reg_name, data);
         }
-        else if (read >> 2 == 0b101000)
+        else if (byte0 >> 2 == 0b101000)
         {
-            bool d = read >> 1 & 1;
-            bool w = read & 1;
+            bool d = byte0 >> 1 & 1;
+            bool w = byte0 & 1;
 
             char *reg_name = registers[w << 3];
             uint16_t addr;
@@ -232,7 +285,7 @@ void decode_asm(FILE *input, FILE *output)
         }
         else
         {
-            fprintf(output, "; unrecognized byte\n");
+            write_unrecognized_byte(output, byte0);
         }
     }
 }
