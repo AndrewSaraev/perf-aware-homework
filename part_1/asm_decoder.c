@@ -1,4 +1,4 @@
-#include "allocator.c"
+#include "memory.h"
 
 #include <stdbool.h>
 #include <stdio.h>
@@ -309,16 +309,14 @@ void main(int argc, char **argv)
         return;
     }
 
-    bump_allocator allocator = create_bump_allocator(1024);
+    memory memory = alloc_memory(1024);
 
     size_t output_file_name_length = strlen(input_file_name) + 9;
-    char *output_file_name;
-    ALLOC_BUMP(output_file_name, output_file_name_length, &allocator);
+    LET(char, output_file_name, output_file_name_length, &memory);
     strcpy(output_file_name, input_file_name);
     strcat(output_file_name, "_dec.asm");
 
     FILE *output_file = fopen(output_file_name, "w");
-    clear_bump_allocator(&allocator);
 
     decode_asm(input_file, output_file);
 
